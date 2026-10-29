@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>NEON SNAKE 4.0</title>
+<style>
+:root{
+  --bg:#07101d;
+  --panel:rgba(12,25,43,.91);
+  --line:rgba(91,177,255,.19);
+  --cyan:#51e8ff;
+  --green:#67ffc0;
+  --text:#eaf6ff;
+  --muted:#8aa5c1;
+}
+*{box-sizing:border-box}
+html,body{
+  margin:0;width:100%;height:100%;overflow:hidden;
+  background:var(--bg);color:var(--text);
+  font-family:Arial,"Microsoft YaHei",sans-serif;
+  overscroll-behavior:none;
+}
+button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
+#gameWrap{position:fixed;inset:0;background:#07101d}
+canvas{width:100%;height:100%;display:block;touch-action:none}
+#hud{
+  position:absolute;top:12px;left:12px;right:12px;
+  display:flex;align-items:flex-start;justify-content:space-between;
+  gap:8px;pointer-events:none;
+}
+.glass{
+  background:rgba(7,17,31,.79);
+  border:1px solid var(--line);
+  border-radius:16px;
+  box-shadow:0 8px 30px rgba(0,0,0,.17);
+  backdrop-filter:blur(12px);
+}
+.brand{padding:11px 14px;min-width:145px}
+.brandTitle{font-weight:900;letter-spacing:1.5px;font-size:14px}
+.brandSub{font-size:10px;color:var(--muted);margin-top:4px}
+.stats{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+.stat{padding:9px 12px;min-width:69px;text-align:center}
+.stat small{display:block;color:var(--muted);font-size:10px;margin-bottom:5px}
+.stat strong{font-size:17px;color:#fff}
+#score{color:var(--green)}
+#topActions{position:absolute;right:12px;top:91px;display:flex;gap:7px}
+.smallBtn{
+  border:1px solid var(--line);background:rgba(8,20,36,.84);
+  border-radius:11px;padding:8px 11px;font-size:12px;
+}
+#help{
+  position:absolute;left:50%;bottom:17px;transform:translateX(-50%);
+  color:#a8bfd5;background:rgba(7,17,31,.68);
+  padding:8px 13px;border:1px solid rgba(110,170,220,.12);
+  border-radius:20px;font-size:11px;white-space:nowrap;
+  pointer-events:none;
+}
+
+/* 霓虹虚拟摇杆样式 */
+#joystickContainer{
+  position:absolute;left:25px;bottom:25px;
+  width:130px;height:130px;
+  border-radius:50%;
+  background:rgba(12,31,52,.4);
+  border:2px solid rgba(81,232,255,.3);
+  box-shadow:0 0 20px rgba(81,232,255,.15), inset 0 0 15px rgba(81,232,255,.1);
+  touch-action:none;
+  display:flex;align-items:center;justify-content:center;
+  user-select:none;-webkit-user-select:none;
+  transition:opacity 0.2s ease;
+}
+#joystickContainer::after{
+  content:'';position:absolute;inset:20px;
+  border-radius:50%;border:1px dashed rgba(81,232,255,.2);
+  pointer-events:none;
+}
+#joystickStick{
+  width:52px;height:52px;
+  border-radius:50%;
+  background:radial-gradient(circle at 35% 35%, #7cebff, #2196f3);
+  border:2px solid rgba(255,255,255,.8);
+  box-shadow:0 0 15px rgba(81,232,255,.8);
+  position:absolute;
+  pointer-events:none;
+  transform:translate(0,0);
+}
+
+#boost{
+  position:absolute;right:25px;bottom:30px;width:70px;height:70px;
+  border-radius:50%;border:1.5px solid rgba(98,255,199,.6);
+  background:radial-gradient(circle at 35% 35%, rgba(40,160,130,.8), rgba(15,60,50,.9));
+  color:#8bffd6;
+  font-size:12px;font-weight:bold;
+  box-shadow:0 0 20px rgba(103,255,192,.3);
+  transition:opacity 0.2s ease;
+}
+#boost:active{transform:scale(.95);background:rgba(40,180,140,.9)}
+#boost span{display:block;font-size:22px;margin-bottom:2px}
+
+#overlay{
+  position:absolute;inset:0;display:flex;align-items:center;
+  justify-content:center;background:rgba(3,9,19,.58);
+  backdrop-filter:blur(5px);padding:18px;
+}
+.menu{
+  width:min(430px,100%);padding:27px;
+  background:linear-gradient(145deg,rgba(16,35,57,.97),rgba(7,17,31,.98));
+  border:1px solid rgba(90,194,255,.26);border-radius:25px;
+  box-shadow:0 25px 90px rgba(0,0,0,.42);text-align:center;
+}
+.logo{font-size:27px;font-weight:1000;letter-spacing:2px}
+.logo span{color:var(--cyan)}
+.tagline{color:#91abc5;font-size:12px;line-height:1.8;margin:10px 0 22px}
+.menuStats{display:flex;gap:8px;margin:18px 0}
+.menuStat{flex:1;background:rgba(255,255,255,.035);border-radius:12px;padding:12px 5px}
+.menuStat small{display:block;color:var(--muted);font-size:11px;margin-bottom:6px}
+.menuStat strong{font-size:17px}
+.primary{
+  width:100%;padding:14px;border:0;border-radius:13px;
+  background:linear-gradient(100deg,#4ae9e2,#69ffc0);
+  color:#05202b;font-weight:900;font-size:16px;
+  box-shadow:0 7px 25px rgba(74,233,226,.15);
+}
+.secondary{
+  width:100%;padding:11px;border-radius:12px;margin-top:9px;
+  border:1px solid var(--line);background:rgba(255,255,255,.035);
+}
+.settingRow{display:flex;align-items:center;justify-content:space-between;margin:16px 0;font-size:13px;color:#c7d9ea}
+select{background:#10263c;color:#eaf6ff;border:1px solid #2a526e;border-radius:8px;padding:8px}
+#notice{
+  position:absolute;top:43%;left:50%;transform:translate(-50%,-50%);
+  color:white;font-size:23px;font-weight:900;text-align:center;
+  text-shadow:0 0 25px #39dfff;pointer-events:none;white-space:nowrap;
+}
+.hidden{display:none!important}
+
+@media(max-width:600px){
+  #hud{top:8px;left:8px;right:8px}
+  .brand{padding:9px 10px;min-width:0}
+  .brandTitle{font-size:11px}
+  .brandSub{font-size:9px}
+  .stat{padding:8px 8px;min-width:49px}
+  .stat small{font-size:9px}
+  .stat strong{font-size:14px}
+  #topActions{top:72px;right:9px}
+  #help{bottom:8px;font-size:10px}
+  #joystickContainer{left:15px;bottom:15px;transform:scale(.88);transform-origin:bottom left}
+  #boost{right:15px;bottom:20px;transform:scale(.9);transform-origin:bottom right}
+  .menu{padding:23px 19px}
+}
+@media(max-height:510px){
+  #joystickContainer{transform:scale(.75);transform-origin:bottom left}
+  #boost{transform:scale(.75);transform-origin:bottom right}
+  #help{display:none}
+}
+</style>
+</head>
+<body>
+<div id="gameWrap">
+<canvas id="game"></canvas>
+
+<div id="hud">
+  <div class="brand glass">
+    <div class="brandTitle">⚡ NEON SNAKE</div>
+    <div class="brandSub">FREE MOVEMENT · ARCADE</div>
+  </div>
+  <div class="stats">
+    <div class="stat glass"><small>得分</small><strong id="score">0</strong></div>
+    <div class="stat glass"><small>蛇身</small><strong id="length">8</strong></div>
+    <div class="stat glass"><small>排名</small><strong id="rank">1/5</strong></div>
+  </div>
+</div>
+
+<div id="topActions">
+  <button class="smallBtn" id="pauseBtn">Ⅱ 暂停</button>
+  <button class="smallBtn" id="restartBtn">↻ 重开</button>
+</div>
+
+<!-- 360度虚拟摇杆（默认隐藏，开赛后出现） -->
+<div id="joystickContainer" class="hidden">
+  <div id="joystickStick"></div>
+</div>
+
+<!-- 加速按钮（默认隐藏，开赛后出现） -->
+<button id="boost" class="hidden"><span>⚡</span>加速</button>
+
+<div id="help">拖动摇杆/WASD/方向键控制平滑转向 · 按住加速</div>
+<div id="notice" class="hidden"></div>
+
+<div id="overlay">
+  <div class="menu">
+    <div class="logo">NEON <span>SNAKE</span></div>
+    <div class="tagline">
+      自由转向 · 平滑镜头 · 卡通蛇身<br>
+      吃掉能量球，成长并挑战其他蛇！
+    </div>
+    <div class="menuStats">
+      <div class="menuStat"><small>最高得分</small><strong id="best">0</strong></div>
+      <div class="menuStat"><small>AI 对手</small><strong>4</strong></div>
+      <div class="menuStat"><small>移动模式</small><strong>自由</strong></div>
+    </div>
+    <div class="settingRow">
+      <label for="difficulty">人机难度</label>
+      <select id="difficulty">
+        <option value="easy">休闲 · 推荐</option>
+        <option value="normal">普通</option>
+        <option value="hard">挑战</option>
+      </select>
+    </div>
+    <button class="primary" id="startBtn">开始游戏</button>
+    <button class="secondary" id="continueBtn">继续 / 重新开始</button>
+    <div class="tagline" style="margin-bottom:0;margin-top:15px">
+      提示：使用摇杆享受柔和顺滑的漂移转向。<br>
+      前期 AI 较温和，双方蛇身接触不会直接淘汰。
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+(() => {
+"use strict";
+
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d", {alpha:false});
+const $ = id => document.getElementById(id);
+
+const WORLD = 4200;
+const FOOD_TARGET = 180;
+const AI_COUNT = 4;
+const TAU = Math.PI * 2;
+const clamp = (v,a,b) => Math.max(a,Math.min(b,v));
+const rand = (a,b) => a + Math.random() * (b-a);
+const dist2 = (a,b) => (a.x-b.x)**2 + (a.y-b.y)**2;
+const dist = (a,b) => Math.hypot(a.x-b.x,a.y-b.y);
+const angleDiff = (a,b) => Math.atan2(Math.sin(b-a),Math.cos(b-a));
+
+let W=innerWidth,H=innerHeight,DPR=1;
+let running=false, paused=false, gameOver=false;
+let lastTime=0, elapsed=0, score=0, best=0, coins=0;
+let player, bots=[], foods=[], particles=[], obstacles=[];
+let camera={x:WORLD/2,y:WORLD/2,angle:0};
+let countdown=0, boostHeld=false, boostTime=0;
+let steerTarget=null, lastHud=0;
+let selectedDifficulty="easy";
+
+// 摇杆变量
+const joyContainer = $("joystickContainer");
+const joyStick = $("joystickStick");
+let joyActive = false;
+let joyCenter = {x:0, y:0};
+let joyTouchId = null;
+
+try{best=Number(localStorage.getItem("neonSnake4Best"))||0}catch(e){}
+$("best").textContent=best;
+
+function resize(){
+  W=innerWidth;H=innerHeight;
+  DPR=Math.min(window.devicePixelRatio||1,2);
+  canvas.width=Math.floor(W*DPR);
+  canvas.height=Math.floor(H*DPR);
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+addEventListener("resize",resize);
+resize();
+
+function angleTo(a,b){return Math.atan2(b.y-a.y,b.x-a.x)}
+function randomPos(margin=160){
+  return {x:rand(margin,WORLD-margin),y:rand(margin,WORLD-margin)};
+}
+function blocked(p,r=25){
+  if(p.x<60||p.y<60||p.x>WORLD-60||p.y>WORLD-60)return true;
+  for(const o of obstacles){
+    if(Math.abs(p.x-o.x)<o.w/2+r && Math.abs(p.y-o.y)<o.h/2+r)return true;
+  }
+  return false;
+}
+function safePos(avoid=[],minGap=240){
+  for(let n=0;n<700;n++){
+    const p=randomPos(180);
+    if(blocked(p,40))continue;
+    if(avoid.some(a=>dist(a,p)<minGap))continue;
+    return p;
+  }
+  return randomPos(220);
+}
+
+// 严禁改动：完全还原原始版蛇的数据属性
+function makeSnake(name,color,isPlayer,pos,angle){
+  const s={
+    name,color,isPlayer,x:pos.x,y:pos.y,angle,
+    speed:0,turn:3.8,radius:isPlayer?13:12,
+    spacing:isPlayer?10.2:9.8,
+    length:isPlayer?8:Math.floor(rand(6,9)),
+    body:[],trail:[],alive:true,respawnAt:0,invincibleUntil:0,
+    age:0,personality:Math.random(),targetFood:null,
+    score:0,boost:0,glow:0,turnWobble:rand(0,TAU),
+    think:0,aiAim:angle,respawnCount:0
+  };
+  s.speed=isPlayer?175:rand(105,125);
+  s.trail=[{x:s.x,y:s.y,angle:s.angle,d:0}];
+  for(let i=0;i<s.length;i++){
+    s.body.push({x:s.x-Math.cos(angle)*i*s.spacing,
+                 y:s.y-Math.sin(angle)*i*s.spacing,
+                 angle});
+  }
+  return s;
+}
+
+function buildObstacles(){
+  obstacles=[];
+  for(let i=0;i<82;i++){
+    const x=rand(150,WORLD-150),y=rand(150,WORLD-150);
+    const w=rand(38,110),h=rand(35,100);
+    if(Math.hypot(x-WORLD/2,y-WORLD/2)<380)continue;
+    obstacles.push({x,y,w,h,r:10,seed:Math.random()});
+  }
+}
+function addFood(x,y,type){
+  const colors={
+    normal:"#7cffbd",gold:"#ffd76c",gem:"#70e5ff",
+    growth:"#c69bff",speed:"#ff91c8"
+  };
+  foods.push({
+    x,y,type:type||"normal",r:type==="normal"?6.5:9,
+    color:colors[type||"normal"],
+    phase:rand(0,TAU),value:type==="gold"?25:type==="gem"?50:10
+  });
+}
+function spawnFood(){
+  const p=safePos([],45);
+  const r=Math.random();
+  const type=r<.065?"gold":r<.115?"gem":r<.16?"growth":r<.205?"speed":"normal";
+  addFood(p.x,p.y,type);
+}
+
+function setInGameControlsVisible(visible){
+  if(visible){
+    joyContainer.classList.remove("hidden");
+    $("boost").classList.remove("hidden");
+  }else{
+    joyContainer.classList.add("hidden");
+    $("boost").classList.add("hidden");
+    resetJoystick();
+  }
+}
+
+function resetGame(){
+  selectedDifficulty=$("difficulty").value;
+  buildObstacles();
+  foods=[];particles=[];bots=[];
+  score=0;elapsed=0;boostTime=0;boostHeld=false;
+  gameOver=false;paused=false;running=true;
+  steerTarget=null;
+
+  const center={x:WORLD/2,y:WORLD/2};
+  player=makeSnake("你","#59f5c6",true,center,0);
+  player.angle=0;
+  player.body=[];
+  for(let i=0;i<player.length;i++){
+    player.body.push({x:center.x-i*player.spacing,y:center.y,angle:0});
+  }
+  player.trail=[{x:center.x,y:center.y,angle:0,d:0}];
+  const colors=["#69baff","#ff8ba7","#c39aff","#ffd36f"];
+  const names=["泡泡","闪电","小橘","星星"];
+  const avoid=[center];
+  for(let i=0;i<AI_COUNT;i++){
+    const p=safePos(avoid,650);
+    avoid.push(p);
+    const a=angleTo(p,center)+Math.PI+rand(-.7,.7);
+    const b=makeSnake(names[i],colors[i],false,p,a);
+    b.speed=rand(104,120);
+    b.invincibleUntil=performance.now()+1800;
+    bots.push(b);
+  }
+  while(foods.length<FOOD_TARGET)spawnFood();
+  camera.x=player.x-70;camera.y=player.y;
+  camera.angle=0;
+  countdown=1.5;
+
+  $("overlay").classList.add("hidden");
+  $("notice").classList.remove("hidden");
+  $("notice").textContent="准备开始";
+  $("pauseBtn").textContent="Ⅱ 暂停";
+
+  setInGameControlsVisible(true);
+  updateHud();
+}
+
+function pauseGame(){
+  if(!running||gameOver)return;
+  paused=!paused;
+  $("pauseBtn").textContent=paused?"▶ 继续":"Ⅱ 暂停";
+  $("notice").textContent=paused?"已暂停":"";
+  $("notice").classList.toggle("hidden",!paused);
+  setInGameControlsVisible(!paused);
+}
+
+function endGame(){
+  running=false;gameOver=true;
+  best=Math.max(best,score);
+  try{localStorage.setItem("neonSnake4Best",String(best))}catch(e){}
+  $("best").textContent=best;
+  $("overlay").classList.remove("hidden");
+  document.querySelector(".logo").innerHTML="游戏<span>结束</span>";
+  document.querySelector(".tagline").innerHTML=
+    "本局得分："+score+"<br>最高得分："+best+"<br>再来一局，挑战更长的蛇身！";
+  $("startBtn").textContent="再玩一局";
+  $("continueBtn").textContent="重新开始";
+  $("notice").classList.add("hidden");
+
+  setInGameControlsVisible(false);
+}
+
+function restoreMenu(){
+  $("overlay").classList.remove("hidden");
+  document.querySelector(".logo").innerHTML='NEON <span>SNAKE</span>';
+  document.querySelector(".tagline").innerHTML=
+    "自由转向 · 平滑镜头 · 卡通蛇身<br>吃掉能量球，成长并挑战其他蛇！";
+  $("startBtn").textContent="开始游戏";
+  $("continueBtn").textContent="继续 / 重新开始";
+  setInGameControlsVisible(false);
+}
+
+function updateHud(){
+  $("score").textContent=score;
+  $("length").textContent=player?player.length:8;
+  const all=[player,...bots.filter(b=>b.alive)];
+  all.sort((a,b)=>b.length-a.length);
+  $("rank").textContent=(Math.max(1,all.indexOf(player)+1))+"/"+(bots.length+1);
+}
+
+function addParticle(x,y,color,n=5){
+  for(let i=0;i<n;i++){
+    particles.push({x,y,vx:rand(-85,85),vy:rand(-85,85),
+      life:rand(.25,.6),max:.6,r:rand(2,4),color});
+  }
+}
+
+function trimTrail(s){
+  const maxLen=(s.length+4)*s.spacing+80;
+  let total=0;
+  for(let i=1;i<s.trail.length;i++){
+    total+=dist(s.trail[i-1],s.trail[i]);
+    if(total>maxLen){s.trail.length=i+1;break}
+  }
+}
+
+function sampleTrail(s,distanceBack){
+  let travelled=0;
+  for(let i=1;i<s.trail.length;i++){
+    const a=s.trail[i-1],b=s.trail[i];
+    const len=dist(a,b);
+    if(travelled+len>=distanceBack){
+      const t=len>0?(distanceBack-travelled)/len:0;
+      return {x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t,
+              angle:Math.atan2(b.y-a.y,b.x-a.x)};
+    }
+    travelled+=len;
+  }
+  const last=s.trail[s.trail.length-1];
+  return {x:last.x,y:last.y,angle:last.angle||s.angle};
+}
+
+function updateBody(s){
+  s.body.length=s.length;
+  for(let i=0;i<s.length;i++){
+    s.body[i]=sampleTrail(s,i*s.spacing);
+  }
+}
+
+function aliveSnakes(){return [player,...bots.filter(b=>b.alive)]}
+function isInvincible(s,now){return !s.isPlayer && now<s.invincibleUntil}
+
+function killBot(b,now){
+  if(!b.alive||isInvincible(b,now))return false;
+  b.alive=false;b.respawnAt=now+2600;
+  for(let i=0;i<b.body.length;i+=1){
+    const seg=b.body[i];
+    addFood(seg.x,seg.y,"gold");
+    if(foods.length>500)foods.splice(0,foods.length-500);
+    addParticle(seg.x,seg.y,b.color,2);
+  }
+  b.body=[];b.trail=[];
+  return true;
+}
+
+function respawnBot(b,now){
+  const others=aliveSnakes().filter(s=>s!==b);
+  const avoid=others.map(s=>({x:s.x,y:s.y}));
+  const p=safePos(avoid,600);
+  b.x=p.x;b.y=p.y;b.angle=rand(-TAU,TAU);
+  b.length=6;b.score=0;b.speed=105;
+  b.alive=true;b.age=0;b.respawnCount++;
+  b.trail=[{x:b.x,y:b.y,angle:b.angle}];
+  b.body=[];
+  for(let i=0;i<b.length;i++){
+    b.body.push({x:b.x-Math.cos(b.angle)*i*b.spacing,
+      y:b.y-Math.sin(b.angle)*i*b.spacing,angle:b.angle});
+  }
+  b.invincibleUntil=now+5000;
+  b.think=0;
+}
+
+function chooseAIDirection(b,dt,now){
+  b.think-=dt;
+  if(b.think>0)return;
+  b.think=rand(.12,.24);
+  const progress=clamp((b.length-6)/32,0,1);
+  const timeProgress=clamp(elapsed/180,0,1);
+  const skill=selectedDifficulty==="easy"?.15:
+              selectedDifficulty==="normal"?.35:.52;
+  const ability=clamp(.10+progress*.44+timeProgress*.12+skill, .10,.8);
+  const choices=[0,Math.PI/3,-Math.PI/3,Math.PI/1.7,-Math.PI/1.7,Math.PI];
+  let bestA=b.angle,bestValue=-Infinity;
+  let target=null;
+  if(b.personality<.6&&Math.random()<ability){
+    let nearest=Infinity;
+    for(const f of foods){
+      const d=dist2(b,f);
+      if(d<nearest){nearest=d;target=f}
+    }
+  }else if(Math.random()<ability*.6){
+    target=player;
+  }
+  for(const delta of choices){
+    const a=b.angle+delta;
+    const p={x:b.x+Math.cos(a)*100,y:b.y+Math.sin(a)*100};
+    let v=rand(-9,9)-Math.abs(delta)*1.1;
+    if(p.x<80||p.y<80||p.x>WORLD-80||p.y>WORLD-80)v-=65;
+    for(const o of obstacles){
+      if(Math.abs(p.x-o.x)<o.w/2+55&&Math.abs(p.y-o.y)<o.h/2+55)v-=70;
+    }
+    for(const other of aliveSnakes()){
+      if(other===b)continue;
+      for(let k=3;k<other.body.length;k+=3){
+        if(dist2(p,other.body[k])<90*90)v-=22;
+      }
+    }
+    if(target){
+      const before=dist2(b,target),after=dist2(p,target);
+      v+=(before-after)*.0006*ability;
+    }
+    if(v>bestValue){bestValue=v;bestA=a}
+  }
+  b.aiAim=bestA;
+}
+
+// 柔和漂移手感的核心移动逻辑
+function moveSnake(s,dt,now){
+  s.age+=dt;
+  if(s.isPlayer){
+    if(steerTarget!==null){
+      const diff=angleDiff(s.angle, steerTarget);
+      // 柔和漂移感算法：响应迅速，但带有一些弧度惯性过渡 (Lerp Angle)
+      const smoothness = 12.0; 
+      s.angle += diff * Math.min(1.0, dt * smoothness);
+    }
+    const growSpeed=clamp((s.length-8)*.65,0,22);
+    s.speed=175+growSpeed+(boostHeld?65:0)+(boostTime>0?35:0);
+  }else{
+    chooseAIDirection(s,dt,now);
+    const diff=angleDiff(s.angle,s.aiAim);
+    const growth=clamp((s.length-6)/30,0,1);
+    const turnRate=1.35+growth*.85;
+    s.angle+=clamp(diff,-turnRate*dt,turnRate*dt);
+    const difficultyBoost=selectedDifficulty==="easy"?0:
+      selectedDifficulty==="normal"?12:23;
+    s.speed=106+growth*24+Math.min(elapsed/30,12)+difficultyBoost;
+  }
+  const old={x:s.x,y:s.y};
+  s.x+=Math.cos(s.angle)*s.speed*dt;
+  s.y+=Math.sin(s.angle)*s.speed*dt;
+  s.trail.unshift({x:s.x,y:s.y,angle:s.angle});
+  trimTrail(s);updateBody(s);
+  return old;
+}
+
+function bodyHit(s,now){
+  const p={x:s.x,y:s.y};
+  if(blocked(p,s.radius))return true;
+  for(const other of aliveSnakes()){
+    if(other===s)continue;
+    for(let i=3;i<other.body.length;i+=2){
+      const seg=other.body[i];
+      if(dist2(p,seg)<(s.radius+other.radius*.72)**2){
+        if(!other.isPlayer&&isInvincible(other,now)){
+          return true;
+        }
+        if(other.isPlayer){
+          return true;
+        }
+        killBot(other,now);
+      }
+    }
+  }
+  return false;
+}
+
+function resolveHeadCollisions(now){
+  const active=aliveSnakes();
+  for(let i=0;i<active.length;i++){
+    for(let j=i+1;j<active.length;j++){
+      const a=active[i],b=active[j];
+      if(!a.alive||!b.alive)continue;
+      if(dist2(a,b)>(a.radius+b.radius)**2)continue;
+      if(a.isPlayer){
+        if(!b.isPlayer&&isInvincible(b,now))continue;
+        if(b.isPlayer)continue;
+        if(a.length>=b.length+2){killBot(b,now);score+=15}
+        else if(b.length>=a.length+2){endGame();return}
+        else if(Math.random()<.5){killBot(b,now);score+=10}
+        else{endGame();return}
+      }else if(b.isPlayer){
+        if(isInvincible(a,now))continue;
+        if(b.length>=a.length+2)killBot(a,now);
+        else if(a.length>=b.length+2){endGame();return}
+        else if(Math.random()<.5)killBot(a,now);
+        else{endGame();return}
+      }else{
+        if(isInvincible(a,now)||isInvincible(b,now))continue;
+        if(a.length>b.length)killBot(b,now);
+        else if(b.length>a.length)killBot(a,now);
+        else if(Math.random()<.5)killBot(a,now);
+        else killBot(b,now);
+      }
+    }
+  }
+}
+
+function eatFood(s){
+  for(let i=foods.length-1;i>=0;i--){
+    const f=foods[i];
+    if(dist2(s,f)<(s.radius+f.r+4)**2){
+      foods.splice(i,1);
+      if(s.isPlayer){
+        if(f.type==="gold"){score+=25;coins+=3;s.length+=1}
+        else if(f.type==="gem"){score+=50;s.length+=2}
+        else if(f.type==="growth"){score+=15;s.length+=3}
+        else if(f.type==="speed"){score+=10;boostTime=4;s.length+=1}
+        else{score+=10;s.length+=1}
+      }else{
+        s.length+=1;
+        s.score+=f.value;
+      }
+      addParticle(f.x,f.y,f.color,8);
+      if(s.isPlayer)updateHud();
+    }
+  }
+}
+
+function update(dt,now){
+  if(!running||paused)return;
+  if(countdown>0){
+    countdown-=dt;
+    $("notice").textContent=countdown>.5?"准备好！":"出发！";
+    if(countdown<=0)$("notice").classList.add("hidden");
+    return;
+  }
+  elapsed+=dt;
+  if(boostTime>0)boostTime-=dt;
+  if(foods.length<FOOD_TARGET)spawnFood();
+  for(const b of bots){
+    if(!b.alive){
+      if(now>=b.respawnAt)respawnBot(b,now);
+      continue;
+    }
+    moveSnake(b,dt,now);
+    if(bodyHit(b,now)){
+      if(!isInvincible(b,now))killBot(b,now);
+      else{
+        b.angle+=rand(1.2,2.5);
+        b.x=clamp(b.x,100,WORLD-100);
+        b.y=clamp(b.y,100,WORLD-100);
+      }
+    }else eatFood(b);
+  }
+  moveSnake(player,dt,now);
+  if(bodyHit(player,now)){endGame();return}
+  eatFood(player);
+  resolveHeadCollisions(now);
+  for(let i=particles.length-1;i>=0;i--){
+    const p=particles[i];p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;
+    p.vx*=.96;p.vy*=.96;
+    if(p.life<=0)particles.splice(i,1);
+  }
+
+  // 保持画面正水平 + 柔和跟着平滑推动视角
+  const lookAhead=115;
+  const tx=player.x+Math.cos(player.angle)*lookAhead;
+  const ty=player.y+Math.sin(player.angle)*lookAhead;
+  const follow=1-Math.exp(-dt*2.8);
+  camera.x+=(tx-camera.x)*follow;
+  camera.y+=(ty-camera.y)*follow;
+  camera.angle=0; // 锁定镜头水平
+  camera.x=clamp(camera.x,W*.25,WORLD-W*.25);
+  camera.y=clamp(camera.y,H*.25,WORLD-H*.25);
+  if(performance.now()-lastHud>140){updateHud();lastHud=performance.now()}
+}
+
+function worldToScreen(x,y){
+  return {x:x-camera.x+W/2,y:y-camera.y+H/2};
+}
+function roundedRect(x,y,w,h,r){
+  ctx.beginPath();
+  ctx.roundRect(x,y,w,h,r);
+}
+
+function drawBackground(){
+  ctx.fillStyle="#07101d";ctx.fillRect(0,0,W,H);
+  const cell=75;
+  const ox=((W/2-camera.x)%cell+cell)%cell;
+  const oy=((H/2-camera.y)%cell+cell)%cell;
+  ctx.strokeStyle="rgba(93,155,209,.055)";ctx.lineWidth=1;
+  ctx.beginPath();
+  for(let x=ox;x<W;x+=cell){ctx.moveTo(x,0);ctx.lineTo(x,H)}
+  for(let y=oy;y<H;y+=cell){ctx.moveTo(0,y);ctx.lineTo(W,y)}
+  ctx.stroke();
+  const grd=ctx.createRadialGradient(W/2,H/2,10,W/2,H/2,Math.max(W,H)*.75);
+  grd.addColorStop(0,"rgba(15,48,73,.13)");
+  grd.addColorStop(1,"rgba(1,5,14,.35)");
+  ctx.fillStyle=grd;ctx.fillRect(0,0,W,H);
+}
+
+function drawObstacles(){
+  for(const o of obstacles){
+    const p=worldToScreen(o.x,o.y);
+    if(p.x<-o.w-100||p.y<-o.h-100||p.x>W+o.w+100||p.y>H+o.h+100)continue;
+    ctx.save();
+    ctx.shadowColor="rgba(63,148,200,.1)";ctx.shadowBlur=14;
+    roundedRect(p.x-o.w/2,p.y-o.h/2,o.w,o.h,12);
+    ctx.fillStyle="#102236";ctx.fill();
+    ctx.strokeStyle="rgba(91,151,193,.2)";ctx.lineWidth=1.5;ctx.stroke();
+    ctx.restore();
+  }
+}
+
+function drawFood(now){
+  for(const f of foods){
+    const p=worldToScreen(f.x,f.y);
+    if(p.x<-30||p.y<-30||p.x>W+30||p.y>H+30)continue;
+    const pulse=1+Math.sin(now*.004+f.phase)*.12;
+    ctx.save();ctx.translate(p.x,p.y);ctx.scale(pulse,pulse);
+    ctx.shadowColor=f.color;ctx.shadowBlur=f.type==="normal"?10:19;
+    ctx.fillStyle=f.color;
+    if(f.type==="gem"){
+      ctx.rotate(Math.PI/4);roundedRect(-6,-6,12,12,3);ctx.fill();
+      ctx.shadowBlur=0;ctx.fillStyle="rgba(255,255,255,.65)";
+      roundedRect(-3,-3,4,4,1);ctx.fill();
+    }else if(f.type==="gold"){
+      ctx.beginPath();ctx.arc(0,0,8,0,TAU);ctx.fill();
+      ctx.shadowBlur=0;ctx.strokeStyle="#fff2bc";ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(0,0,4,0,TAU);ctx.stroke();
+    }else if(f.type==="growth"){
+      ctx.beginPath();ctx.arc(0,0,8,0,TAU);ctx.fill();
+      ctx.fillStyle="#fff";ctx.fillRect(-1.5,-5,3,10);ctx.fillRect(-5,-1.5,10,3);
+    }else if(f.type==="speed"){
+      ctx.beginPath();ctx.moveTo(2,-9);ctx.lineTo(-5,1);ctx.lineTo(0,1);
+      ctx.lineTo(-2,9);ctx.lineTo(6,-2);ctx.lineTo(1,-2);ctx.closePath();ctx.fill();
+    }else{
+      ctx.beginPath();ctx.arc(0,0,6,0,TAU);ctx.fill();
+      ctx.shadowBlur=0;ctx.fillStyle="rgba(255,255,255,.8)";
+      ctx.beginPath();ctx.arc(-2,-2,2,0,TAU);ctx.fill();
+    }
+    ctx.restore();
+  }
+}
+
+// 严禁改动：100% 还原原版的蛇渲染逻辑
+function drawSnake(s,now){
+  if(!s.alive||!s.body.length)return;
+  const invincible=isInvincible(s,now);
+  ctx.save();
+  ctx.globalAlpha=invincible?.48:1;
+
+  for(let i=s.body.length-1;i>=0;i--){
+    const b=s.body[i],p=worldToScreen(b.x,b.y);
+    if(p.x<-50||p.y<-50||p.x>W+50||p.y>H+50)continue;
+    const t=i/Math.max(1,s.body.length-1);
+    const r=s.radius*(1-.20*t);
+    const gradient=ctx.createRadialGradient(p.x-r*.3,p.y-r*.4,1,p.x,p.y,r*1.5);
+    gradient.addColorStop(0,lighten(s.color,.42));
+    gradient.addColorStop(.48,s.color);
+    gradient.addColorStop(1,darken(s.color,.43));
+    ctx.fillStyle=gradient;
+    ctx.shadowColor=s.color;ctx.shadowBlur=i<4?8:2;
+    ctx.beginPath();ctx.arc(p.x,p.y,r,0,TAU);ctx.fill();
+    ctx.shadowBlur=0;
+    if(i%3===0&&i>0){
+      ctx.fillStyle="rgba(255,255,255,.20)";
+      ctx.beginPath();ctx.arc(p.x-r*.2,p.y-r*.27,Math.max(1.2,r*.12),0,TAU);ctx.fill();
+    }
+  }
+
+  const h=worldToScreen(s.x,s.y);
+  const r=s.radius*1.13;
+  ctx.shadowColor=s.color;ctx.shadowBlur=16;
+  const hg=ctx.createRadialGradient(h.x-r*.25,h.y-r*.45,1,h.x,h.y,r*1.4);
+  hg.addColorStop(0,lighten(s.color,.5));hg.addColorStop(.6,s.color);hg.addColorStop(1,darken(s.color,.25));
+  ctx.fillStyle=hg;ctx.beginPath();ctx.arc(h.x,h.y,r,0,TAU);ctx.fill();
+  ctx.shadowBlur=0;
+
+  const sideX=-Math.sin(s.angle),sideY=Math.cos(s.angle);
+  for(const side of [-1,1]){
+    const ex=h.x+Math.cos(s.angle)*r*.34+sideX*side*r*.38;
+    const ey=h.y+Math.sin(s.angle)*r*.34+sideY*side*r*.38;
+    ctx.fillStyle="#f7ffff";
+    ctx.beginPath();ctx.arc(ex,ey,r*.29,0,TAU);ctx.fill();
+    const px=ex+Math.cos(s.angle)*r*.10,py=ey+Math.sin(s.angle)*r*.10;
+    ctx.fillStyle="#12314a";
+    ctx.beginPath();ctx.arc(px,py,r*.16,0,TAU);ctx.fill();
+    ctx.fillStyle="#fff";
+    ctx.beginPath();ctx.arc(px-r*.05,py-r*.07,r*.065,0,TAU);ctx.fill();
+  }
+
+  ctx.strokeStyle="rgba(9,35,45,.6)";ctx.lineWidth=1.5;
+  ctx.beginPath();
+  ctx.arc(h.x+Math.cos(s.angle)*r*.23,h.y+Math.sin(s.angle)*r*.23,
+    r*.32,s.angle+.5,s.angle+2.4);ctx.stroke();
+
+  if(invincible){
+    ctx.strokeStyle="rgba(114,226,255,.9)";ctx.lineWidth=2;
+    ctx.setLineDash([4,5]);ctx.beginPath();
+    ctx.arc(h.x,h.y,r+8+Math.sin(now*.01)*2,0,TAU);ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  if(s.isPlayer){
+    ctx.strokeStyle="rgba(111,255,216,.22)";ctx.lineWidth=1;
+    ctx.beginPath();ctx.arc(h.x,h.y,r+6,0,TAU);ctx.stroke();
+  }
+  ctx.restore();
+
+  if(!s.isPlayer){
+    const p=worldToScreen(s.x,s.y);
+    ctx.font="11px Arial";ctx.textAlign="center";
+    ctx.fillStyle="rgba(231,244,255,.85)";
+    ctx.fillText(s.name,p.x,p.y-s.radius-16);
+    if(invincible){
+      ctx.font="9px Arial";ctx.fillStyle="#83e8ff";
+      ctx.fillText("保护中",p.x,p.y-s.radius-28);
+    }
+  }
+}
+
+function lighten(hex,amount){
+  const c=hex.replace("#","");let r=parseInt(c.slice(0,2),16),
+  g=parseInt(c.slice(2,4),16),b=parseInt(c.slice(4,6),16);
+  r=Math.round(r+(255-r)*amount);g=Math.round(g+(255-g)*amount);b=Math.round(b+(255-b)*amount);
+  return `rgb(${r},${g},${b})`;
+}
+function darken(hex,amount){
+  const c=hex.replace("#","");let r=parseInt(c.slice(0,2),16),
+  g=parseInt(c.slice(2,4),16),b=parseInt(c.slice(4,6),16);
+  r=Math.round(r*(1-amount));g=Math.round(g*(1-amount));b=Math.round(b*(1-amount));
+  return `rgb(${r},${g},${b})`;
+}
+
+function drawParticles(){
+  for(const p of particles){
+    const s=worldToScreen(p.x,p.y);
+    ctx.globalAlpha=clamp(p.life/p.max,0,1);
+    ctx.fillStyle=p.color;
+    ctx.beginPath();ctx.arc(s.x,s.y,p.r,0,TAU);ctx.fill();
+  }
+  ctx.globalAlpha=1;
+}
+
+function render(now){
+  drawBackground();
+  drawObstacles();
+  drawFood(now);
+  for(const b of bots)drawSnake(b,now);
+  if(player)drawSnake(player,now);
+  drawParticles();
+
+  const vignette=ctx.createRadialGradient(W/2,H/2,Math.min(W,H)*.22,W/2,H/2,Math.max(W,H)*.72);
+  vignette.addColorStop(0,"rgba(0,0,0,0)");
+  vignette.addColorStop(1,"rgba(0,0,0,.18)");
+  ctx.fillStyle=vignette;ctx.fillRect(0,0,W,H);
+}
+
+function frame(now){
+  const dt=Math.min(.035,(now-lastTime)/1000||0);
+  lastTime=now;
+  update(dt,now);
+  render(now);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+// 摇杆控制事件逻辑
+function updateJoystick(clientX, clientY) {
+  const dx = clientX - joyCenter.x;
+  const dy = clientY - joyCenter.y;
+  const maxRadius = 45;
+  const distance = Math.hypot(dx, dy);
+
+  if (distance > 0) {
+    steerTarget = Math.atan2(dy, dx);
+    const clampedDist = Math.min(distance, maxRadius);
+    const angle = Math.atan2(dy, dx);
+    const stickX = Math.cos(angle) * clampedDist;
+    const stickY = Math.sin(angle) * clampedDist;
+    joyStick.style.transform = `translate(${stickX}px, ${stickY}px)`;
+  }
+}
+
+function resetJoystick() {
+  joyActive = false;
+  joyTouchId = null;
+  joyStick.style.transform = `translate(0px, 0px)`;
+}
+
+joyContainer.addEventListener("pointerdown", e => {
+  if (!running || paused) return;
+  joyActive = true;
+  joyTouchId = e.pointerId;
+  const rect = joyContainer.getBoundingClientRect();
+  joyCenter = {
+    x: rect.left + rect.width / 2,
+    y: rect.top + rect.height / 2
+  };
+  joyContainer.setPointerCapture(e.pointerId);
+  updateJoystick(e.clientX, e.clientY);
+});
+
+joyContainer.addEventListener("pointermove", e => {
+  if (joyActive && e.pointerId === joyTouchId) {
+    updateJoystick(e.clientX, e.clientY);
+  }
+});
+
+["pointerup", "pointercancel"].forEach(ev => {
+  joyContainer.addEventListener(ev, e => {
+    if (e.pointerId === joyTouchId) {
+      resetJoystick();
+    }
+  });
+});
+
+// 键盘控制兼容
+function steerByKey(key){
+  const dirs={
+    ArrowUp:-Math.PI/2,w:-Math.PI/2,W:-Math.PI/2,
+    ArrowDown:Math.PI/2,s:Math.PI/2,S:Math.PI/2,
+    ArrowLeft:Math.PI,a:Math.PI,A:Math.PI,
+    ArrowRight:0,d:0,D:0
+  };
+  if(key in dirs){ steerTarget = dirs[key]; return true; }
+  return false;
+}
+
+addEventListener("keydown",e=>{
+  if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"," "].includes(e.key))e.preventDefault();
+  if(e.key===" "){pauseGame();return}
+  if(e.key==="Escape"){pauseGame();return}
+  steerByKey(e.key);
+},{passive:false});
+
+// 加速按键事件
+$("boost").addEventListener("pointerdown",e=>{e.preventDefault();boostHeld=true});
+["pointerup","pointercancel","pointerleave"].forEach(ev=>
+  $("boost").addEventListener(ev,()=>boostHeld=false));
+
+// 菜单与大厅交互
+$("startBtn").addEventListener("click",()=>{
+  restoreMenu();resetGame();
+});
+$("continueBtn").addEventListener("click",()=>{
+  restoreMenu();resetGame();
+});
+$("pauseBtn").addEventListener("click",pauseGame);
+$("restartBtn").addEventListener("click",()=>{
+  restoreMenu();resetGame();
+});
+
+})();
+</script>
+</body>
+</html>
